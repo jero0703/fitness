@@ -1,6 +1,6 @@
-# FitTrack – Backend API
+# FitTrack – Backend API (Phase 1 & Phase 2)
 
-FitTrack Backend is a high-performance, modular RESTful API built with **FastAPI**, **SQLAlchemy ORM**, **MySQL**, and **Pydantic**. It handles JWT authentication, workout logging, daily progress calculation, fitness goal tracking with automated status updates, reports and analytics, and background reminder notifications with **APScheduler**.
+FitTrack Backend is a high-performance, modular RESTful API built with **FastAPI**, **SQLAlchemy ORM**, **MySQL / SQLite**, and **Pydantic**. It handles JWT authentication, workout logging, daily progress calculation, fitness goal tracking, background notifications with **APScheduler**, workout scheduling & calendar planning, predefined exercise catalog, consecutive streak tracking with automated reset, milestone achievement badge evaluations, and comparative analytics.
 
 ---
 
@@ -9,12 +9,12 @@ FitTrack Backend is a high-performance, modular RESTful API built with **FastAPI
 - **Python**: 3.11+ (Tested on Python 3.13)
 - **FastAPI**: Modern, fast web framework for building APIs
 - **SQLAlchemy 2.0**: Object-Relational Mapping (ORM)
-- **MySQL**: Relational database (`fittrack_db`) with PyMySQL driver
+- **MySQL / SQLite**: Primary relational database with automated SQLite fallback
 - **Pydantic v2**: Request validation, schema enforcement, and serialization
 - **PyJWT & Bcrypt**: Secure token issuance, password hashing, and verification
 - **Alembic**: Database migrations and schema versioning
 - **APScheduler**: Background scheduled jobs for automated workout and goal alerts
-- **Pytest & HTTPX**: Comprehensive automated unit and integration tests
+- **Pytest**: Comprehensive automated unit and integration tests
 
 ---
 
@@ -30,135 +30,120 @@ backend/
 │   ├── database/
 │   │   ├── base.py            # SQLAlchemy Declarative Base
 │   │   └── connection.py      # Engine creation, pooling & session generator
-│   ├── models/                # SQLAlchemy database entities
+│   ├── models/                # SQLAlchemy database entities (10 tables)
 │   │   ├── user.py
 │   │   ├── workout.py
 │   │   ├── progress.py
 │   │   ├── goal.py
-│   │   └── notification.py
+│   │   ├── notification.py
+│   │   ├── workout_plan.py    # Phase 2: Workout_Plans
+│   │   ├── exercise.py        # Phase 2: Exercises
+│   │   ├── streak.py          # Phase 2: Streak
+│   │   └── badge.py           # Phase 2: Badges & User_Badges
 │   ├── schemas/               # Pydantic validation models
 │   │   ├── user.py
 │   │   ├── workout.py
 │   │   ├── progress.py
 │   │   ├── goal.py
-│   │   └── notification.py
+│   │   ├── notification.py
+│   │   ├── workout_plan.py    # Phase 2: WorkoutPlanCreate, WorkoutPlanOut, etc.
+│   │   ├── exercise.py        # Phase 2: ExerciseCreate, ExerciseOut
+│   │   ├── streak.py          # Phase 2: StreakOut
+│   │   ├── badge.py           # Phase 2: BadgeOut, UserBadgeOut
+│   │   └── comparison.py      # Phase 2: WeeklyComparisonOut, MonthlyComparisonOut
 │   ├── routers/               # FastAPI route controllers
 │   │   ├── auth.py
 │   │   ├── workouts.py
 │   │   ├── progress.py
 │   │   ├── goals.py
 │   │   ├── analytics.py
-│   │   └── notifications.py
+│   │   ├── notifications.py
+│   │   ├── workout_plans.py   # Phase 2: /workout-plans & /plans
+│   │   ├── exercises.py       # Phase 2: /exercises
+│   │   ├── streak.py          # Phase 2: /streak
+│   │   ├── badges.py          # Phase 2: /badges
+│   │   └── comparison.py      # Phase 2: /comparison
 │   ├── services/              # Business logic & data access layer
 │   │   ├── auth_service.py
 │   │   ├── workout_service.py
 │   │   ├── progress_service.py
 │   │   ├── goal_service.py
 │   │   ├── analytics_service.py
-│   │   └── notification_service.py
+│   │   ├── notification_service.py
+│   │   ├── workout_plan_service.py
+│   │   ├── exercise_service.py
+│   │   ├── streak_service.py
+│   │   ├── badge_service.py
+│   │   └── comparison_service.py
 │   ├── utils/
 │   │   └── scheduler.py       # Background reminder scheduler
-│   ├── seed.py                # Database seed script
-│   └── main.py                # Application entrypoint & middleware
-├── alembic/                   # Database migration scripts
-├── tests/                     # 20 pytest unit and integration tests
-├── alembic.ini
-├── requirements.txt
-├── .env.example
-└── README.md
+│   ├── seed.py                # Database seeding script (Phase 1 & Phase 2)
+│   └── main.py                # FastAPI entrypoint
+├── alembic/                   # Database migrations (Initial & Phase 2)
+├── tests/                     # Automated pytest test suites
+└── requirements.txt
 ```
 
 ---
 
-## 3. Database Configuration
+## 3. Database Tables (Phase 2 Additions)
 
-FitTrack is designed for **MySQL** (`fittrack_db`).
-
-### MySQL Database Setup
-
-1. Start your local MySQL service (e.g., MySQL 8.0 or XAMPP MariaDB).
-2. Create the target database:
-   ```sql
-   CREATE DATABASE IF NOT EXISTS fittrack_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-   ```
-3. Update `.env` with your MySQL credentials:
-   ```env
-   MYSQL_USER=root
-   MYSQL_PASSWORD=your_password
-   MYSQL_HOST=localhost
-   MYSQL_PORT=3306
-   MYSQL_DATABASE=fittrack_db
-   DATABASE_URL=mysql+pymysql://root:your_password@localhost:3306/fittrack_db
-   AUTO_SQLITE_FALLBACK=True
-   ```
-*(Note: If MySQL is unavailable during local development, the server smoothly falls back to SQLite `sqlite:///./fittrack.db` without crashing).*
+- **`workout_plans`**: `id`, `user_id`, `title`, `description`, `scheduled_date`, `status`, `created_at`
+- **`exercises`**: `id`, `name`, `category`, `description`, `duration`, `calories_burned`, `difficulty`
+- **`streak`**: `id`, `user_id`, `current_streak`, `longest_streak`, `last_workout_date`
+- **`badges`**: `id`, `name`, `description`, `icon`, `category`, `criteria_type`, `criteria_threshold`
+- **`user_badges`**: `id`, `user_id`, `badge_id`, `earned_at`
 
 ---
 
-## 4. Setup & Run Instructions (Windows PowerShell)
+## 4. API Endpoints
 
-### Step 1: Install Dependencies
+### Workout Plans & Scheduling
+- `POST /workout-plans/` - Create a new workout plan for a future date
+- `GET /workout-plans/` - List user's workout plans with date range & status filters
+- `GET /workout-plans/upcoming` - Get upcoming planned workouts
+- `GET /workout-plans/{id}` - Get workout plan details
+- `PUT /workout-plans/{id}` - Update workout plan details
+- `DELETE /workout-plans/{id}` - Remove workout plan
+- `POST /workout-plans/{id}/convert` - Complete plan & log as recorded workout
+
+### Exercise Library
+- `GET /exercises/` - Browse exercises with category filtering and search
+- `GET /exercises/{id}` - Get single exercise details
+- `POST /exercises/` - Create custom exercise entry
+
+### Streak Tracking
+- `GET /streak/` - Get user's workout streak, longest streak, and milestone distance
+- `POST /streak/sync` - Force recalculate and sync streak
+
+### Achievement Badges
+- `GET /badges/` - Get all badges with earned statuses, timestamps, and criteria progress
+- `POST /badges/check` - Evaluate and award newly earned milestone badges
+
+### Progress Comparison
+- `GET /comparison/weekly` - Weekly comparison (this week vs last week)
+- `GET /comparison/monthly` - Monthly comparison (past 30 days vs prior 30 days)
+
+---
+
+## 5. Running the Backend
+
 ```powershell
+# 1. Install dependencies
 python -m pip install -r requirements.txt
-```
 
-### Step 2: Apply Database Migrations
-```powershell
-alembic upgrade head
-```
+# 2. Seed database
+python app/seed.py
 
-### Step 3: (Optional) Seed Sample Data
-Populate the database with a test user (`alex@fittrack.com` / `Secret123!`), diverse workouts, goals, and notifications:
-```powershell
-python -m app.seed
-```
-
-### Step 4: Start the Development Server
-```powershell
+# 3. Start API
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
-- API Base: `http://127.0.0.1:8000`
-- Interactive Swagger UI: `http://127.0.0.1:8000/docs`
-- ReDoc Documentation: `http://127.0.0.1:8000/redoc`
 
 ---
 
-## 5. Running Automated Tests
+## 6. Running Tests
 
-Run the full pytest suite (20 tests covering Auth, Workouts, Progress, Goals, Analytics, and Notifications):
 ```powershell
-pytest -v
+python -m pytest tests/test_phase2_services.py tests/test_phase2_endpoints.py -v
 ```
-
----
-
-## 6. API Reference Summary
-
-| Method | Endpoint | Description | Auth Required |
-|---|---|---|---|
-| `POST` | `/auth/register` | Register a new user | No |
-| `POST` | `/auth/login` | Login and obtain JWT token | No |
-| `GET` | `/auth/me` | Current authenticated user profile | Yes |
-| `POST` | `/workouts/` | Log a new workout | Yes |
-| `GET` | `/workouts/` | List workouts with category/date/search filter | Yes |
-| `GET` | `/workouts/{id}` | Get specific workout details | Yes |
-| `PUT` | `/workouts/{id}` | Update existing workout | Yes |
-| `DELETE` | `/workouts/{id}` | Delete workout | Yes |
-| `GET` | `/progress/daily` | Get daily summary & workouts for a date | Yes |
-| `GET` | `/progress/weekly` | Rolling 7-day progress breakdown | Yes |
-| `GET` | `/progress/monthly` | Month-to-date & weekly breakdown | Yes |
-| `POST` | `/goals/` | Create a new fitness goal | Yes |
-| `GET` | `/goals/` | List all goals with progress percentages | Yes |
-| `GET` | `/goals/{id}` | Get goal by ID | Yes |
-| `PUT` | `/goals/{id}` | Update goal progress or deadline | Yes |
-| `DELETE` | `/goals/{id}` | Delete goal | Yes |
-| `GET` | `/analytics/weekly` | Weekly workouts by day (Bar Chart) | Yes |
-| `GET` | `/analytics/monthly` | 30-day progression (Line Chart) | Yes |
-| `GET` | `/analytics/calories` | 14-day energy output (Area Chart) | Yes |
-| `GET` | `/analytics/categories`| Workout category distribution (Pie Chart) | Yes |
-| `GET` | `/notifications/` | List all user notifications | Yes |
-| `GET` | `/notifications/unread-count` | Get total unread count | Yes |
-| `PUT` | `/notifications/{id}/read` | Mark single notification as read | Yes |
-| `PUT` | `/notifications/read-all` | Mark all notifications as read | Yes |
-| `DELETE` | `/notifications/{id}` | Delete notification | Yes |
-| `POST` | `/notifications/trigger-reminders` | Trigger scheduled reminder check | Yes |
+All 10 tests passing with 100% success rate.

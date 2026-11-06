@@ -83,4 +83,35 @@ export const notificationsAPI = {
   triggerReminders: () => api.post("/notifications/trigger-reminders"),
 };
 
+export const plansAPI = {
+  getAll: (params) => api.get("/workout-plans/", { params }),
+  getUpcoming: (limit = 10) => api.get("/workout-plans/upcoming", { params: { limit } }),
+  getById: (id) => api.get(`/workout-plans/${id}`),
+  create: (data) => api.post("/workout-plans/", data),
+  update: (id, data) => api.put(`/workout-plans/${id}`, data),
+  delete: (id) => api.delete(`/workout-plans/${id}`),
+  convert: (id, data) => api.post(`/workout-plans/${id}/convert`, data),
+};
+
+export const exercisesAPI = {
+  getAll: (params) => api.get("/exercises/", { params }),
+  getById: (id) => api.get(`/exercises/${id}`),
+  create: (data) => api.post("/exercises/", data),
+};
+
+export const streakAPI = {
+  get: () => api.get("/streak/"),
+  sync: () => api.post("/streak/sync"),
+};
+
+export const badgesAPI = {
+  getAll: () => api.get("/badges/"),
+  check: () => api.post("/badges/check"),
+};
+
+export const comparisonAPI = {
+  getWeekly: () => api.get("/comparison/weekly"),
+  getMonthly: () => api.get("/comparison/monthly"),
+};
+
 export default api;

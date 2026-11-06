@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { notificationsAPI } from "../services/api";
+import { notificationsAPI, streakAPI } from "../services/api";
 import {
   LayoutDashboard,
   Dumbbell,
@@ -16,14 +16,20 @@ import {
   CheckCircle2,
   Calendar,
   Flame,
-  ChevronRight
+  ChevronRight,
+  BookOpen,
+  Trophy,
+  CalendarCheck
 } from "lucide-react";
 
 const navItems = [
   { name: "Dashboard", path: "/", icon: LayoutDashboard },
   { name: "Workouts", path: "/workouts", icon: Dumbbell },
-  { name: "Progress", path: "/progress", icon: TrendingUp },
+  { name: "Plans & Calendar", path: "/calendar", icon: CalendarCheck },
+  { name: "Exercise Library", path: "/exercises", icon: BookOpen },
+  { name: "Progress & Comparison", path: "/progress", icon: TrendingUp },
   { name: "Goals", path: "/goals", icon: Target },
+  { name: "Achievements", path: "/badges", icon: Trophy },
   { name: "Analytics", path: "/analytics", icon: BarChart3 },
   { name: "Notifications", path: "/notifications", icon: Bell },
   { name: "Settings", path: "/settings", icon: Settings },
@@ -38,23 +44,29 @@ const DashboardLayout = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [recentNotifications, setRecentNotifications] = useState([]);
+  const [currentStreak, setCurrentStreak] = useState(0);
 
-  // Fetch unread notifications count
-  const fetchNotifications = async () => {
+  // Fetch unread notifications count and streak
+  const fetchNotificationsAndStreak = async () => {
     try {
-      const countRes = await notificationsAPI.getUnreadCount();
+      const [countRes, listRes, streakRes] = await Promise.all([
+        notificationsAPI.getUnreadCount(),
+        notificationsAPI.getAll(5),
+        streakAPI.get().catch(() => ({ data: { current_streak: 0 } })),
+      ]);
       setUnreadCount(countRes.data.unread_count);
-
-      const listRes = await notificationsAPI.getAll(5);
       setRecentNotifications(listRes.data);
+      if (streakRes?.data) {
+        setCurrentStreak(streakRes.data.current_streak);
+      }
     } catch (err) {
-      console.error("Failed to fetch notification count", err);
+      console.error("Failed to fetch notification count or streak", err);
     }
   };
 
   useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000); // 30s poll for realtime alert feel
+    fetchNotificationsAndStreak();
+    const interval = setInterval(fetchNotificationsAndStreak, 30000); // 30s poll for realtime alert feel
     return () => clearInterval(interval);
   }, []);
 
@@ -201,8 +213,18 @@ const DashboardLayout = () => {
             </div>
           </div>
 
-          {/* Right section: Date, Notification Dropdown & Profile */}
-          <div className="flex items-center space-x-4">
+          {/* Right section: Streak, Date, Notification Dropdown & Profile */}
+          <div className="flex items-center space-x-3 sm:space-x-4">
+            {/* Header Streak Counter */}
+            <Link
+              to="/"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-200/80 text-orange-800 text-xs font-black shadow-sm transition"
+              title="Current Daily Workout Streak"
+            >
+              <Flame className="h-4 w-4 text-orange-500 fill-orange-500 animate-pulse" />
+              <span>{currentStreak}d Streak</span>
+            </Link>
+
             <div className="hidden md:flex items-center text-xs font-semibold text-textMuted bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-lg shadow-sm">
               <Calendar className="h-3.5 w-3.5 mr-1.5 text-primary" />
               {currentDateFormatted}

@@ -1,21 +1,38 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { progressAPI, workoutsAPI, goalsAPI } from "../services/api";
+import {
+  progressAPI,
+  workoutsAPI,
+  goalsAPI,
+  streakAPI,
+  plansAPI,
+  badgesAPI
+} from "../services/api";
 import StatCard from "../components/StatCard";
 import WorkoutModal from "../components/WorkoutModal";
+import PlanModal from "../components/PlanModal";
+import AchievementModal from "../components/AchievementModal";
 import {
   Dumbbell,
   Flame,
   Clock,
   Target,
   Plus,
-  ArrowRight,
-  TrendingUp,
   Calendar,
   Award,
   ChevronRight,
-  Activity
+  Activity,
+  Zap,
+  CheckCircle2,
+  CalendarCheck,
+  BookOpen,
+  Trophy,
+  Sparkles,
+  ShieldCheck,
+  Footprints,
+  Crown,
+  Medal
 } from "lucide-react";
 import {
   BarChart,
@@ -29,31 +46,68 @@ import {
 } from "recharts";
 import { toast } from "react-toastify";
 
+const iconMap = {
+  Footprints,
+  Dumbbell,
+  Trophy,
+  Crown,
+  Flame,
+  Zap,
+  ShieldCheck,
+  Medal,
+  Target,
+  CheckCircle2,
+  Award,
+  Sparkles,
+};
+
 const Dashboard = () => {
   const { user } = useAuth();
 
+  // Core Data
   const [dailyData, setDailyData] = useState(null);
   const [weeklyData, setWeeklyData] = useState(null);
   const [goals, setGoals] = useState([]);
   const [recentWorkouts, setRecentWorkouts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [streakData, setStreakData] = useState(null);
+  const [upcomingPlans, setUpcomingPlans] = useState([]);
+  const [badgesData, setBadgesData] = useState({ total_badges: 0, earned_count: 0, badges: [] });
+
+  // Modals
   const [workoutModalOpen, setWorkoutModalOpen] = useState(false);
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [selectedBadge, setSelectedBadge] = useState(null);
+  const [badgeModalOpen, setBadgeModalOpen] = useState(false);
 
   const loadDashboardData = async () => {
     try {
-      const [dailyRes, weeklyRes, goalsRes, workoutsRes] = await Promise.all([
+      const [
+        dailyRes,
+        weeklyRes,
+        goalsRes,
+        workoutsRes,
+        streakRes,
+        plansRes,
+        badgesRes
+      ] = await Promise.all([
         progressAPI.getDaily(),
         progressAPI.getWeekly(),
         goalsAPI.getAll(),
         workoutsAPI.getAll({ limit: 5 }),
+        streakAPI.get(),
+        plansAPI.getUpcoming(4),
+        badgesAPI.getAll(),
       ]);
 
       setDailyData(dailyRes.data);
       setWeeklyData(weeklyRes.data);
       setGoals(goalsRes.data);
       setRecentWorkouts(workoutsRes.data);
+      setStreakData(streakRes.data);
+      setUpcomingPlans(plansRes.data);
+      setBadgesData(badgesRes.data);
     } catch (err) {
-      console.error("Failed to load dashboard data", err);
+      console.error("Failed to load personalized dashboard", err);
       toast.error("Could not fetch latest fitness metrics.");
     } finally {
       setLoading(false);
@@ -75,49 +129,92 @@ const Dashboard = () => {
     }
   };
 
+  const handleCreatePlan = async (planData) => {
+    try {
+      await plansAPI.create(planData);
+      toast.success("Workout scheduled into planner!");
+      loadDashboardData();
+    } catch (err) {
+      toast.error("Failed to schedule workout.");
+      throw err;
+    }
+  };
+
+  const handleCompleteUpcomingPlan = async (plan) => {
+    try {
+      await plansAPI.convert(plan.id, {
+        category: "Cardio",
+        duration: 30,
+        calories_burned: 250.0,
+      });
+      toast.success(`Completed "${plan.title}"! Logged as workout.`);
+      loadDashboardData();
+    } catch (err) {
+      toast.error("Failed to complete scheduled plan.");
+    }
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
       case "COMPLETED":
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">Completed</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">Completed</span>;
       case "IN_PROGRESS":
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-100 text-teal-800">In Progress</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-800">In Progress</span>;
       case "OVERDUE":
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800">Overdue</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800">Overdue</span>;
       default:
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700">Not Started</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700">Not Started</span>;
     }
   };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
-      {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-gray-900 to-slate-800 p-6 sm:p-8 text-white shadow-xl">
+      {/* Welcome Banner (Module 12) */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-gray-900 to-emerald-950 p-6 sm:p-8 text-white shadow-xl">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="max-w-xl">
             <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold mb-3 border border-emerald-500/30">
               <Activity className="h-3.5 w-3.5" />
-              <span>Daily Fitness Tracker</span>
+              <span>Personalized Athlete Dashboard • Phase 2</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Ready to crush your goals, {user?.username}?
+              Welcome back, <span className="text-primary">{user?.username}</span>! 👋
             </h1>
             <p className="mt-2 text-sm text-gray-300 leading-relaxed">
-              Track your daily exercises, maintain workout streaks, and visualize your progress with live analytics.
+              {streakData?.streak_active
+                ? `🔥 Incredible discipline! Your ${streakData.current_streak}-day workout streak is active today.`
+                : "🏃 Let's keep the momentum going. Record today's session to extend your streak!"}
             </p>
           </div>
-          <div className="flex items-center space-x-3 shrink-0">
+
+          {/* Quick Action Toolbar */}
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <button
               onClick={() => setWorkoutModalOpen(true)}
-              className="px-5 py-3 rounded-2xl bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-lg shadow-primary/30 transition flex items-center space-x-2"
+              className="px-4 py-2.5 rounded-2xl bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-md shadow-primary/30 transition flex items-center space-x-1.5"
             >
               <Plus className="h-4 w-4" />
-              <span>Quick Add Workout</span>
+              <span>Log Workout</span>
             </button>
+            <button
+              onClick={() => setPlanModalOpen(true)}
+              className="px-4 py-2.5 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-md shadow-teal-600/30 transition flex items-center space-x-1.5"
+            >
+              <Calendar className="h-4 w-4" />
+              <span>Schedule Plan</span>
+            </button>
+            <Link
+              to="/exercises"
+              className="px-4 py-2.5 rounded-2xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold border border-gray-700 transition flex items-center space-x-1.5"
+            >
+              <BookOpen className="h-4 w-4" />
+              <span>Exercise Library</span>
+            </Link>
           </div>
         </div>
       </div>
 
-      {/* Daily Metrics Summary Grid */}
+      {/* Daily Metrics & Streak Grid (4 StatCards) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
           title="Workouts Today"
@@ -133,218 +230,339 @@ const Dashboard = () => {
           unit="kcal"
           icon={Flame}
           color="orange"
-          subtitle="Today's energy output"
+          subtitle="Energy output today"
         />
         <StatCard
-          title="Workout Duration"
+          title="Active Minutes"
           value={dailyData?.total_duration ?? 0}
           unit="minutes"
           icon={Clock}
           color="blue"
-          subtitle="Total active exercise time"
+          subtitle="Total workout duration"
         />
-        <StatCard
-          title="Weekly Workouts"
-          value={weeklyData?.total_workouts ?? 0}
-          unit="workouts"
-          icon={TrendingUp}
-          color="secondary"
-          subtitle={`${Math.round(weeklyData?.total_calories || 0)} kcal this week`}
-        />
+        {/* Module 10: Streak Counter Card */}
+        <div className="bg-gradient-to-br from-orange-500 to-amber-600 rounded-3xl p-6 text-white shadow-lg shadow-orange-500/20 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-orange-100">Daily Streak</span>
+            <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
+              <Flame className="h-5 w-5 text-yellow-200 animate-pulse" />
+            </div>
+          </div>
+          <div className="my-2">
+            <div className="flex items-baseline space-x-2">
+              <span className="text-3xl font-black">{streakData?.current_streak ?? 0}</span>
+              <span className="text-xs font-bold uppercase text-orange-200">Days</span>
+            </div>
+            <p className="text-xs text-orange-100 mt-1">
+              Record: {streakData?.longest_streak ?? 0} days
+            </p>
+          </div>
+          <div className="pt-2 border-t border-white/20 text-[11px] font-semibold text-yellow-100 flex items-center justify-between">
+            <span>{streakData?.streak_active ? "✓ Logged today" : "⚡ Workout needed"}</span>
+            <span>Next: {streakData?.next_milestone || 3}d</span>
+          </div>
+        </div>
       </div>
 
-      {/* Main Charts & Goals Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Weekly Activity Bar Chart (2 columns) */}
-        <div className="lg:col-span-2 bg-white rounded-3xl p-6 sm:p-7 border border-borderSubtle shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-base font-bold text-gray-900">Weekly Activity Overview</h3>
-              <p className="text-xs text-textMuted mt-0.5">Calories burned over the past 7 days</p>
+      {/* Main Content Grid: 8 Cols Left, 4 Cols Right */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Column (8 cols) */}
+        <div className="lg:col-span-8 space-y-8">
+          {/* Upcoming Workouts Section (Module 7 & 12) */}
+          <div className="bg-white rounded-3xl p-6 sm:p-7 border border-borderSubtle shadow-sm">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Upcoming Workout Plans</h3>
+                <p className="text-xs text-textMuted mt-0.5">Workouts scheduled in your calendar</p>
+              </div>
+              <Link
+                to="/calendar"
+                className="text-xs font-bold text-primary hover:text-primary-dark flex items-center space-x-1"
+              >
+                <span>Full Calendar</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
             </div>
-            <Link
-              to="/analytics"
-              className="text-xs font-bold text-primary hover:text-primary-dark flex items-center space-x-1"
-            >
-              <span>Detailed Analytics</span>
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
 
-          <div className="h-64 w-full">
-            {weeklyData?.daily_breakdown?.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklyData.daily_breakdown} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#64748B" }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#64748B" }} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: "12px", border: "1px solid #E2E8F0", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
-                    formatter={(value) => [`${value} kcal`, "Calories Burned"]}
-                    labelFormatter={(label, item) => `${label} (${item[0]?.payload?.date || ""})`}
-                  />
-                  <Bar dataKey="calories" radius={[8, 8, 0, 0]} maxBarSize={40}>
-                    {weeklyData.daily_breakdown.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={entry.calories > 0 ? "#22C55E" : "#E2E8F0"}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+            {upcomingPlans.length === 0 ? (
+              <div className="py-8 text-center text-xs text-textMuted bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                <CalendarCheck className="h-6 w-6 text-gray-300 mx-auto mb-1.5" />
+                <p className="font-semibold text-gray-600">No workouts scheduled for the upcoming days.</p>
+                <button
+                  onClick={() => setPlanModalOpen(true)}
+                  className="mt-2 text-primary font-bold hover:underline"
+                >
+                  + Schedule a workout plan
+                </button>
+              </div>
             ) : (
-              <div className="flex h-full items-center justify-center text-xs text-textMuted">
-                No activity records for this period. Log a workout to see your chart!
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {upcomingPlans.map((plan) => (
+                  <div
+                    key={plan.id}
+                    className="p-4 rounded-2xl bg-gray-50/80 border border-gray-100 flex flex-col justify-between space-y-3 hover:bg-gray-50 transition"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-teal-100 text-teal-800">
+                          {plan.scheduled_date}
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-semibold">Planned</span>
+                      </div>
+                      <h4 className="text-xs font-bold text-gray-900 line-clamp-1">{plan.title}</h4>
+                      {plan.description && (
+                        <p className="text-[11px] text-gray-500 mt-1 line-clamp-2">{plan.description}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleCompleteUpcomingPlan(plan)}
+                      className="w-full py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center justify-center space-x-1"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <span>Complete & Log</span>
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
 
-          <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between text-xs text-textMuted">
-            <span>Rolling 7-Day Window: {weeklyData?.start_date} to {weeklyData?.end_date}</span>
-            <span className="font-semibold text-gray-800">Total: {Math.round(weeklyData?.total_calories || 0)} kcal</span>
+          {/* Weekly Activity Bar Chart */}
+          <div className="bg-white rounded-3xl p-6 sm:p-7 border border-borderSubtle shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Weekly Energy Expenditure</h3>
+                <p className="text-xs text-textMuted mt-0.5">Calories burned over the rolling 7-day period</p>
+              </div>
+              <Link
+                to="/progress"
+                className="text-xs font-bold text-primary hover:text-primary-dark flex items-center space-x-1"
+              >
+                <span>Comparison & Trends</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+
+            <div className="h-60 w-full">
+              {weeklyData?.daily_breakdown?.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={weeklyData.daily_breakdown} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#64748B" }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#64748B" }} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: "12px", border: "1px solid #E2E8F0" }}
+                      formatter={(value) => [`${value} kcal`, "Calories Burned"]}
+                    />
+                    <Bar dataKey="calories" radius={[8, 8, 0, 0]} maxBarSize={36}>
+                      {weeklyData.daily_breakdown.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={entry.calories > 0 ? "#22C55E" : "#E2E8F0"}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center text-xs text-textMuted">
+                  No activity records for this period.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Recent Workouts Log Table */}
+          <div className="bg-white rounded-3xl p-6 sm:p-7 border border-borderSubtle shadow-sm">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Recent Completed Workouts</h3>
+                <p className="text-xs text-textMuted mt-0.5">Your most recent exercise entries</p>
+              </div>
+              <Link
+                to="/workouts"
+                className="text-xs font-bold text-primary hover:text-primary-dark flex items-center space-x-1"
+              >
+                <span>View Full Log</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+
+            {recentWorkouts.length === 0 ? (
+              <div className="py-8 text-center text-xs text-textMuted">
+                No workouts logged yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-gray-50/80 text-gray-500 uppercase tracking-wider font-semibold border-b border-gray-100">
+                    <tr>
+                      <th className="py-2.5 px-3 rounded-l-xl">Workout Name</th>
+                      <th className="py-2.5 px-3">Category</th>
+                      <th className="py-2.5 px-3">Duration</th>
+                      <th className="py-2.5 px-3">Burned</th>
+                      <th className="py-2.5 px-3 rounded-r-xl">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 font-medium">
+                    {recentWorkouts.map((w) => (
+                      <tr key={w.id} className="hover:bg-gray-50/50 transition">
+                        <td className="py-2.5 px-3 font-bold text-gray-900">{w.workout_name}</td>
+                        <td className="py-2.5 px-3">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-teal-800">
+                            {w.category}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-gray-700">{w.duration}m</td>
+                        <td className="py-2.5 px-3 text-gray-700 font-bold">{Math.round(w.calories_burned)} kcal</td>
+                        <td className="py-2.5 px-3 text-gray-500">{w.workout_date}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Fitness Goals Progress Card (1 column) */}
-        <div className="bg-white rounded-3xl p-6 sm:p-7 border border-borderSubtle shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h3 className="text-base font-bold text-gray-900">Active Goals</h3>
-              <p className="text-xs text-textMuted mt-0.5">Track milestone progress</p>
+        {/* Right Column (4 cols) */}
+        <div className="lg:col-span-4 space-y-8">
+          {/* Active Goals Progress Card */}
+          <div className="bg-white rounded-3xl p-6 sm:p-7 border border-borderSubtle shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Active Goals</h3>
+                <p className="text-xs text-textMuted mt-0.5">Target milestones</p>
+              </div>
+              <Link
+                to="/goals"
+                className="text-xs font-bold text-secondary hover:text-secondary-dark flex items-center space-x-1"
+              >
+                <span>All Goals</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
             </div>
+
+            <div className="space-y-4">
+              {goals.length === 0 ? (
+                <div className="py-6 text-center text-xs text-gray-500">
+                  No active goals. Set a goal to stay focused!
+                </div>
+              ) : (
+                goals.slice(0, 3).map((goal) => (
+                  <div key={goal.id} className="p-3.5 rounded-2xl bg-gray-50 border border-gray-100">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-gray-900">{goal.goal_type}</span>
+                      {getStatusBadge(goal.status)}
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-textMuted mb-2">
+                      <span>Target: {goal.target_value}</span>
+                      <span>{goal.current_value} ({goal.percentage}%)</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-secondary h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${goal.percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
             <Link
               to="/goals"
-              className="text-xs font-bold text-secondary hover:text-secondary-dark flex items-center space-x-1"
+              className="mt-4 w-full py-2.5 rounded-xl border border-dashed border-gray-300 text-xs font-bold text-gray-600 hover:text-primary hover:border-primary transition flex items-center justify-center space-x-1"
             >
-              <span>All Goals</span>
-              <ChevronRight className="h-3.5 w-3.5" />
+              <Plus className="h-3.5 w-3.5" />
+              <span>Manage Goals</span>
             </Link>
           </div>
 
-          <div className="space-y-4 flex-1">
-            {goals.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="p-3 bg-teal-50 text-secondary rounded-2xl mb-2">
-                  <Target className="h-6 w-6" />
-                </div>
-                <p className="text-xs font-medium text-gray-600">No active fitness goals yet.</p>
-                <Link
-                  to="/goals"
-                  className="mt-3 text-xs font-bold text-secondary hover:underline"
-                >
-                  + Create your first goal
-                </Link>
+          {/* Achievement Badges Showcase Card (Module 11 & 12) */}
+          <div className="bg-white rounded-3xl p-6 sm:p-7 border border-borderSubtle shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Milestone Badges</h3>
+                <p className="text-xs text-textMuted mt-0.5">
+                  {badgesData.earned_count} of {badgesData.total_badges} unlocked
+                </p>
               </div>
-            ) : (
-              goals.slice(0, 3).map((goal) => (
-                <div key={goal.id} className="p-3.5 rounded-2xl bg-gray-50 border border-gray-100">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-bold text-gray-900">{goal.goal_type}</span>
-                    {getStatusBadge(goal.status)}
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-textMuted mb-2">
-                    <span>Target: {goal.target_value}</span>
-                    <span>Current: {goal.current_value} ({goal.percentage}%)</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                    <div
-                      className="bg-secondary h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${goal.percentage}%` }}
-                    />
-                  </div>
-                  <div className="mt-1.5 text-[10px] text-gray-400 text-right">
-                    Deadline: {goal.deadline}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          <Link
-            to="/goals"
-            className="mt-4 w-full py-2.5 rounded-xl border border-dashed border-gray-300 text-xs font-bold text-gray-600 hover:text-primary hover:border-primary transition flex items-center justify-center space-x-1.5"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Manage All Goals</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* Recent Workouts Table Section */}
-      <div className="bg-white rounded-3xl p-6 sm:p-7 border border-borderSubtle shadow-sm">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-base font-bold text-gray-900">Recent Workout Sessions</h3>
-            <p className="text-xs text-textMuted mt-0.5">Your most recently completed fitness logs</p>
-          </div>
-          <Link
-            to="/workouts"
-            className="text-xs font-bold text-primary hover:text-primary-dark flex items-center space-x-1"
-          >
-            <span>View Full Log</span>
-            <ChevronRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-
-        {recentWorkouts.length === 0 ? (
-          <div className="py-12 text-center">
-            <div className="p-3 bg-emerald-50 text-primary rounded-2xl inline-flex mb-3">
-              <Dumbbell className="h-6 w-6" />
+              <Link
+                to="/badges"
+                className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center space-x-1"
+              >
+                <span>Trophy Room</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
             </div>
-            <h4 className="text-sm font-bold text-gray-800">No workouts logged yet</h4>
-            <p className="text-xs text-textMuted mt-1 max-w-sm mx-auto">
-              Get started by recording your first exercise session to trigger daily and weekly progress stats.
-            </p>
-            <button
-              onClick={() => setWorkoutModalOpen(true)}
-              className="mt-4 px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl shadow-md hover:bg-primary-hover transition"
+
+            {/* Badges Grid Showcase */}
+            <div className="grid grid-cols-3 gap-3">
+              {badgesData.badges.slice(0, 6).map((badge) => {
+                const Icon = iconMap[badge.icon] || Trophy;
+                const isEarned = badge.earned;
+
+                return (
+                  <div
+                    key={badge.id}
+                    onClick={() => {
+                      if (isEarned) {
+                        setSelectedBadge(badge);
+                        setBadgeModalOpen(true);
+                      }
+                    }}
+                    className={`p-3 rounded-2xl border text-center transition flex flex-col items-center justify-between ${
+                      isEarned
+                        ? "bg-amber-50/40 border-amber-200 hover:shadow-md cursor-pointer"
+                        : "bg-gray-50 border-gray-100 opacity-60"
+                    }`}
+                    title={badge.name}
+                  >
+                    <div
+                      className={`h-11 w-11 rounded-xl flex items-center justify-center mb-1.5 ${
+                        isEarned
+                          ? "bg-gradient-to-tr from-amber-400 to-yellow-500 text-white shadow-sm shadow-amber-500/25"
+                          : "bg-gray-200 text-gray-400"
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <span className="text-[10px] font-bold text-gray-800 line-clamp-1">
+                      {badge.name}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <Link
+              to="/badges"
+              className="mt-5 w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs font-bold text-center shadow-md shadow-amber-500/20 hover:opacity-95 transition"
             >
-              Record First Workout
-            </button>
+              Explore All Achievements
+            </Link>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-gray-50/80 text-gray-500 uppercase tracking-wider font-semibold border-b border-gray-100">
-                <tr>
-                  <th className="py-3 px-4 rounded-l-xl">Workout Name</th>
-                  <th className="py-3 px-4">Category</th>
-                  <th className="py-3 px-4">Duration</th>
-                  <th className="py-3 px-4">Calories Burned</th>
-                  <th className="py-3 px-4 rounded-r-xl">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 font-medium">
-                {recentWorkouts.map((w) => (
-                  <tr key={w.id} className="hover:bg-gray-50/50 transition">
-                    <td className="py-3 px-4 font-bold text-gray-900 flex items-center space-x-2">
-                      <div className="p-1.5 rounded-lg bg-emerald-50 text-primary shrink-0">
-                        <Dumbbell className="h-3.5 w-3.5" />
-                      </div>
-                      <span className="truncate max-w-[200px]">{w.workout_name}</span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-teal-50 text-secondary border border-teal-100">
-                        {w.category}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-gray-700">{w.duration} mins</td>
-                    <td className="py-3 px-4 text-gray-700 font-semibold">{Math.round(w.calories_burned)} kcal</td>
-                    <td className="py-3 px-4 text-gray-500">{w.workout_date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        </div>
       </div>
 
-      {/* Workout Modal */}
+      {/* Modals */}
       <WorkoutModal
         isOpen={workoutModalOpen}
         onClose={() => setWorkoutModalOpen(false)}
         onSave={handleCreateWorkout}
+      />
+
+      <PlanModal
+        isOpen={planModalOpen}
+        onClose={() => setPlanModalOpen(false)}
+        onSave={handleCreatePlan}
+      />
+
+      <AchievementModal
+        isOpen={badgeModalOpen}
+        onClose={() => setBadgeModalOpen(false)}
+        badge={selectedBadge}
       />
     </div>
   );

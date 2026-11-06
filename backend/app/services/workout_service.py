@@ -5,6 +5,8 @@ from fastapi import HTTPException, status
 from app.models.workout import Workout
 from app.schemas.workout import WorkoutCreate, WorkoutUpdate
 from app.services.progress_service import ProgressService
+from app.services.streak_service import StreakService
+from app.services.badge_service import BadgeService
 
 class WorkoutService:
     @staticmethod
@@ -23,6 +25,13 @@ class WorkoutService:
 
         # Synchronize daily progress aggregate for this date
         ProgressService.sync_progress_for_date(db, user_id, workout_data.workout_date)
+
+        # Update streak tracking
+        StreakService.calculate_user_streak(db, user_id)
+
+        # Evaluate and award any milestone badges
+        BadgeService.check_and_award_badges(db, user_id)
+
         return workout
 
     @staticmethod
@@ -82,6 +91,10 @@ class WorkoutService:
         if workout.workout_date != original_date:
             ProgressService.sync_progress_for_date(db, user_id, workout.workout_date)
 
+        # Recalculate streak & badges
+        StreakService.calculate_user_streak(db, user_id)
+        BadgeService.check_and_award_badges(db, user_id)
+
         return workout
 
     @staticmethod
@@ -92,5 +105,6 @@ class WorkoutService:
         db.delete(workout)
         db.commit()
 
-        # Resync progress aggregate
+        # Resync progress aggregate and streak
         ProgressService.sync_progress_for_date(db, user_id, w_date)
+        StreakService.calculate_user_streak(db, user_id)

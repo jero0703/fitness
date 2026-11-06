@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { X, Dumbbell, Sparkles } from "lucide-react";
+import { X, Dumbbell, Sparkles, BookOpen } from "lucide-react";
 import { toast } from "react-toastify";
+import { exercisesAPI } from "../services/api";
 
 const categories = [
   "Cardio",
@@ -36,6 +37,15 @@ const WorkoutModal = ({ isOpen, onClose, onSave, initialData }) => {
     workout_date: new Date().toISOString().split("T")[0],
   });
   const [submitting, setSubmitting] = useState(false);
+  const [exercisesList, setExercisesList] = useState([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      exercisesAPI.getAll({ limit: 50 }).then((res) => {
+        setExercisesList(res.data);
+      }).catch((e) => console.error(e));
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (initialData) {
@@ -56,6 +66,22 @@ const WorkoutModal = ({ isOpen, onClose, onSave, initialData }) => {
       });
     }
   }, [initialData, isOpen]);
+
+  const handleSelectFromLibrary = (e) => {
+    const exId = e.target.value;
+    if (!exId) return;
+    const found = exercisesList.find((ex) => String(ex.id) === String(exId));
+    if (found) {
+      setFormData((prev) => ({
+        ...prev,
+        workout_name: found.name,
+        category: found.category,
+        duration: found.duration || 30,
+        calories_burned: found.calories_burned || Math.round((found.duration || 30) * (calorieMultipliers[found.category] || 7.5)),
+      }));
+      toast.info(`Filled details from library: ${found.name}`);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -125,6 +151,27 @@ const WorkoutModal = ({ isOpen, onClose, onSave, initialData }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {!initialData && exercisesList.length > 0 && (
+            <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-100 mb-2">
+              <label className="block text-xs font-bold text-emerald-800 uppercase tracking-wider mb-1 flex items-center space-x-1.5">
+                <BookOpen className="h-3.5 w-3.5" />
+                <span>Quick Select from Exercise Library</span>
+              </label>
+              <select
+                onChange={handleSelectFromLibrary}
+                defaultValue=""
+                className="w-full px-3 py-2 bg-white rounded-lg border border-emerald-200 text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">-- Choose predefined exercise --</option>
+                {exercisesList.map((ex) => (
+                  <option key={ex.id} value={ex.id}>
+                    {ex.name} ({ex.category} • {ex.duration}m)
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
               Workout Name

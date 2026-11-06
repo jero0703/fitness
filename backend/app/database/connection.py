@@ -32,11 +32,14 @@ def create_db_engine():
             return eng
         except Exception as e:
             if settings.AUTO_SQLITE_FALLBACK:
+                backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                db_path = os.path.join(backend_dir, "fittrack.db")
                 logger.warning(
-                    "MySQL connection failed (%s). Falling back to SQLite for local development: sqlite:///./fittrack.db",
-                    str(e)
+                    "MySQL connection failed (%s). Falling back to SQLite for local development: sqlite:///%s",
+                    str(e),
+                    db_path
                 )
-                sqlite_url = "sqlite:///./fittrack.db"
+                sqlite_url = f"sqlite:///{db_path}"
                 return create_engine(sqlite_url, connect_args={"check_same_thread": False})
             else:
                 logger.error("Could not connect to MySQL database at %s: %s", database_url, str(e))

@@ -3,6 +3,7 @@ from typing import List
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from app.models.goal import Goal
+from app.services.badge_service import BadgeService
 from app.models.notification import Notification
 from app.schemas.goal import GoalCreate, GoalUpdate, GoalOut
 
@@ -68,6 +69,9 @@ class GoalService:
         db.add(notif)
         db.commit()
 
+        # Check badges (e.g. Goal Setter)
+        BadgeService.check_and_award_badges(db, user_id)
+
         return GoalService._to_goal_out(goal)
 
     @staticmethod
@@ -128,6 +132,7 @@ class GoalService:
             )
             db.add(notif)
             db.commit()
+            BadgeService.check_and_award_badges(db, user_id)
 
         return GoalService._to_goal_out(goal)
 

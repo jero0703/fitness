@@ -1,8 +1,13 @@
 """
-FitTrack Database Seeding Script
+FitTrack Database Seeding Script - Phase 1 & Phase 2
 Populates the database with a test athlete, workouts across diverse categories,
-daily progress aggregates, fitness goals, and notification alerts.
+daily progress aggregates, fitness goals, notifications, workout plans,
+exercise library, streaks, and achievement badges.
 """
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from datetime import date, timedelta
 from app.database.connection import SessionLocal, init_db
 from app.core.security import get_password_hash
@@ -10,7 +15,11 @@ from app.models.user import User
 from app.models.workout import Workout
 from app.models.goal import Goal
 from app.models.notification import Notification
+from app.models.workout_plan import WorkoutPlan
 from app.services.progress_service import ProgressService
+from app.services.exercise_service import ExerciseService
+from app.services.streak_service import StreakService
+from app.services.badge_service import BadgeService
 
 def seed_database():
     print("Initializing database tables...")
@@ -126,7 +135,51 @@ def seed_database():
                 db.add(n)
 
         db.commit()
-        print("FitTrack seeding completed successfully!")
+
+        # Phase 2: Seed Exercises
+        print("Seeding predefined exercise library...")
+        ex_count = ExerciseService.seed_default_exercises(db)
+        print(f"Seeded {ex_count} new exercises.")
+
+        # Phase 2: Seed Workout Plans
+        print("Seeding upcoming workout plans...")
+        sample_plans = [
+            ("Threshold Tempo Run", "45 min outdoor endurance run maintaining Zone 3 heart rate.", today + timedelta(days=1)),
+            ("Upper Body Hypertrophy", "Bench press, incline dumbbells, lateral raises, tricep extensions.", today + timedelta(days=2)),
+            ("Full Body Mobility & Yoga", "Restorative flow for hamstrings, lower back, and hip flexors.", today + timedelta(days=3)),
+            ("High Intensity Hill Sprints", "10x 40-meter hill sprints with walking recovery.", today + timedelta(days=5)),
+        ]
+
+        for p_title, p_desc, p_date in sample_plans:
+            existing_plan = db.query(WorkoutPlan).filter(
+                WorkoutPlan.user_id == user_id,
+                WorkoutPlan.title == p_title,
+                WorkoutPlan.scheduled_date == p_date
+            ).first()
+            if not existing_plan:
+                wp = WorkoutPlan(
+                    user_id=user_id,
+                    title=p_title,
+                    description=p_desc,
+                    scheduled_date=p_date,
+                    status="PLANNED"
+                )
+                db.add(wp)
+
+        db.commit()
+
+        # Phase 2: Calculate Streak
+        print("Calculating athlete workout streaks...")
+        streak = StreakService.calculate_user_streak(db, user_id)
+        print(f"Current streak: {streak.current_streak} days (Longest: {streak.longest_streak} days)")
+
+        # Phase 2: Seed & Award Badges
+        print("Seeding badges & evaluating milestones...")
+        BadgeService.seed_default_badges(db)
+        awarded = BadgeService.check_and_award_badges(db, user_id)
+        print(f"Awarded {len(awarded)} badges to athlete.")
+
+        print("FitTrack Phase 2 seeding completed successfully!")
 
     except Exception as e:
         print(f"Error seeding database: {e}")

@@ -6,7 +6,9 @@ from app.database.connection import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.progress import DailySummaryOut, WeeklySummaryOut, MonthlySummaryOut
+from app.schemas.comparison import WeeklyComparisonOut, MonthlyComparisonOut
 from app.services.progress_service import ProgressService
+from app.services.comparison_service import ComparisonService
 
 router = APIRouter(prefix="/progress", tags=["Daily Progress Tracking"])
 
@@ -43,3 +45,23 @@ def get_monthly_progress(
     Retrieve month-to-date workout metrics and week-by-week aggregated statistics.
     """
     return ProgressService.get_monthly_summary(db, current_user.id, year, month)
+
+@router.get("/comparison/weekly", response_model=WeeklyComparisonOut, summary="Compare weekly progress")
+def get_weekly_progress_comparison(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Compare this week vs last week progress.
+    """
+    return ComparisonService.get_weekly_comparison(db, current_user.id)
+
+@router.get("/comparison/monthly", response_model=MonthlyComparisonOut, summary="Compare monthly progress")
+def get_monthly_progress_comparison(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Compare this month vs last month progress.
+    """
+    return ComparisonService.get_monthly_comparison(db, current_user.id)

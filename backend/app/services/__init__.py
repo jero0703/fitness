@@ -4,6 +4,11 @@ from app.services.progress_service import ProgressService
 from app.services.goal_service import GoalService
 from app.services.analytics_service import AnalyticsService
 from app.services.notification_service import NotificationService
+from app.services.workout_plan_service import WorkoutPlanService
+from app.services.exercise_service import ExerciseService
+from app.services.streak_service import StreakService
+from app.services.badge_service import BadgeService
+from app.services.comparison_service import ComparisonService
 
 __all__ = [
     "AuthService",
@@ -11,5 +16,10 @@ __all__ = [
     "ProgressService",
     "GoalService",
     "AnalyticsService",
-    "NotificationService"
+    "NotificationService",
+    "WorkoutPlanService",
+    "ExerciseService",
+    "StreakService",
+    "BadgeService",
+    "ComparisonService",
 ]

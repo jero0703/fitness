@@ -13,8 +13,11 @@ import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import Workouts from "./pages/Workouts";
+import WorkoutPlans from "./pages/WorkoutPlans";
+import ExerciseLibrary from "./pages/ExerciseLibrary";
 import Progress from "./pages/Progress";
 import Goals from "./pages/Goals";
+import Badges from "./pages/Badges";
 import Analytics from "./pages/Analytics";
 import Notifications from "./pages/Notifications";
 import Settings from "./pages/Settings";
@@ -36,8 +39,12 @@ function App() {
             <Route element={<DashboardLayout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/workouts" element={<Workouts />} />
+              <Route path="/calendar" element={<WorkoutPlans />} />
+              <Route path="/plans" element={<WorkoutPlans />} />
+              <Route path="/exercises" element={<ExerciseLibrary />} />
               <Route path="/progress" element={<Progress />} />
               <Route path="/goals" element={<Goals />} />
+              <Route path="/badges" element={<Badges />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/settings" element={<Settings />} />
